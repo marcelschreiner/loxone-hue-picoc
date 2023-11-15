@@ -94,7 +94,7 @@ int IsGroup(int type)
 }
 
 
-void SendCommand(int type, int bulbId, char *command)
+void SendCommand(int type, int id, char *command)
 {
     char streamname[100];
     char selector[30];
@@ -119,11 +119,11 @@ void SendCommand(int type, int bulbId, char *command)
 
     if (0 == type)
     {
-        sprintf(selector, "lights/%d/state", bulbId);
+        sprintf(selector, "lights/%d/state", id);
     }
     else
     {
-        sprintf(selector, "groups/%d/action", bulbId);
+        sprintf(selector, "groups/%d/action", id);
     }
     
     sprintf(txBuffer, "PUT /api/%s/%s HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\nContent-Length: %d\r\n\r\n%s", USERNAME, selector, IP_ADDRESS, strlen(command), command);
@@ -161,7 +161,7 @@ void SendCommand(int type, int bulbId, char *command)
 }
 
 
-void SetOnOff(int bulbId, int state, int type)
+void SetOnOff(int id, int state, int type)
 {
     char command[50];
 
@@ -173,18 +173,18 @@ void SetOnOff(int bulbId, int state, int type)
     {
         sprintf(command, "{\"on\": true, \"transitiontime\": 10}");
     }
-    SendCommand(type, bulbId, command);
+    SendCommand(type, id, command);
 }
 
 
-void SetDim(int bulbId, int brightness, int type)
+void SetDim(int id, int brightness, int type)
 {
     char command[60];
 
     // Check if brightness is set to 0 and leave early
     if (0 == brightness)
     {
-        SetOnOff(bulbId, 0, type);
+        SetOnOff(id, 0, type);
         return;
     } 
 
@@ -192,11 +192,11 @@ void SetDim(int bulbId, int brightness, int type)
     brightness = (brightness * 255) / 100;
 
     sprintf(command, "{\"on\": true, \"bri\": %d, \"transitiontime\": 10}", brightness);
-    SendCommand(type, bulbId, command);
+    SendCommand(type, id, command);
 }
 
 
-void SetTunable(int bulbId, int value, int type)
+void SetTunable(int id, int value, int type)
 {
     char command[100];
     int brightness;
@@ -205,7 +205,7 @@ void SetTunable(int bulbId, int value, int type)
     // Check if brightness is set to 0 and leave early
     if (0 == brightness)
     {
-        SetOnOff(bulbId, 0, type);
+        SetOnOff(id, 0, type);
         return;
     }
 
@@ -216,11 +216,11 @@ void SetTunable(int bulbId, int value, int type)
     temperature = 1000000 / temperature;                        // 154 - 370
 
     sprintf(command, "{\"on\": true, \"bri\": %d, \"ct\": %d, \"transitiontime\": 10}", brightness, temperature);
-    SendCommand(type, bulbId, command);
+    SendCommand(type, id, command);
 }
 
 
-void SetColorXYB(int bulbId, float red, float green, float blue, int type)
+void SetColorXYB(int id, float red, float green, float blue, int type)
 {
     float cx, cy, bri;
     float X, Y, Z;
@@ -286,12 +286,12 @@ void SetColorXYB(int bulbId, float red, float green, float blue, int type)
 
     sprintf(command, "{\"xy\": [%f,%f],\"bri\": %d,\"on\":true, \"transitiontime\": 10}", cx, cy, bri);
 
-    SendCommand(type, bulbId, command);
+    SendCommand(type, id, command);
 }
 
 
 // Living Colors Gen2 does not work with xy
-void SetColorHSB(int bulbId, float red, float green, float blue, int type)
+void SetColorHSB(int id, float red, float green, float blue, int type)
 {
     float hue, sat, bri;
     char command[100];
@@ -354,11 +354,11 @@ void SetColorHSB(int bulbId, float red, float green, float blue, int type)
 
     sprintf(command, "{\"bri\": %d, \"hue\": %d, \"sat\": %d, \"on\": true, \"transitiontime\": 10}", (int)bri, (int)hue, (int)sat);
 
-    SendCommand(type, bulbId, command);
+    SendCommand(type, id, command);
 }
 
 
-void SetRGB(int bulbId, int value, int type)
+void SetRGB(int id, int value, int type)
 {
     int red;
     int green;
@@ -367,7 +367,7 @@ void SetRGB(int bulbId, int value, int type)
     // Check if brightness is set to 0 and leave early
     if (0 == value)
     {
-        SetOnOff(bulbId, 0, type);
+        SetOnOff(id, 0, type);
         return;
     }
 
@@ -376,24 +376,25 @@ void SetRGB(int bulbId, int value, int type)
     red   = value - (blue * 1000000) - (green * 1000);
 
     // Use ether HSB or XYB to set RGB colors (Choose whatever works best for you!)
-    SetColorXYB(bulbId, (float)red, (float)green, (float)blue, type);
-    //SetColorHSB(bulbId, (float)red, (float)green, (float)blue, type);
+    SetColorXYB(id, (float)red, (float)green, (float)blue, type);
+    //SetColorHSB(id, (float)red, (float)green, (float)blue, type);
 }
 
 
 void UpdateLamp(int i, int value)
 {
+    int id = bulbId[i];
     switch (bulbType[i])
     {
         case TYPE_SINGLE_RGB:
         case TYPE_GROUP_RGB:
             if (value < 200000000)
             {
-                SetRGB(bulbId[i], value, IsGroup(bulbType[i]));
+                SetRGB(id, value, IsGroup(bulbType[i]));
             }
             else
             {
-                SetTunable(bulbId[i], value, IsGroup(bulbType[i]));
+                SetTunable(id, value, IsGroup(bulbType[i]));
             }
             break;
 
@@ -401,18 +402,18 @@ void UpdateLamp(int i, int value)
         case TYPE_GROUP_TUNABLE:
             if ((200000000 <= value) || (0 == value))
             {
-                SetTunable(bulbId[i], value, IsGroup(bulbType[i]));
+                SetTunable(id, value, IsGroup(bulbType[i]));
             }
             break;
 
         case TYPE_SINGLE_DIM:
         case TYPE_GROUP_DIM:
-            SetDim(bulbId[i], value, IsGroup(bulbType[i]));
+            SetDim(id, value, IsGroup(bulbType[i]));
             break;
 
         case TYPE_SINGLE_ONOFF:
         case TYPE_GROUP_ONOFF:
-            SetOnOff(bulbId[i], value, IsGroup(bulbType[i]));
+            SetOnOff(id, value, IsGroup(bulbType[i]));
             break;
     }
 }
@@ -426,14 +427,14 @@ int main(void)
     while (1)
     {
         // Get a bitmask of the changed inputs (bit 0 = first input of object, starts with text inputs followed by analog inputs).
-        inputsThatChanged = 0;//getinputevent();
+        inputsThatChanged = getinputevent();
 
         // Loop from AI1 to AI13 and update lamp if the corresponding input changed
         for (i = 0; i < 13; i++)
         {
             if (inputsThatChanged & (0x8 << i))
             {
-                UpdateLamp(i, /*(int)getinput(i)*/0);
+                UpdateLamp(i, (int)getinput(i));
                 sleep(100);
             }
         }
