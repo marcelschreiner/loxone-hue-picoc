@@ -9,7 +9,7 @@
 //  section below. DO NOT CHANGE ANYTHING ELSE!
 // ***************************************************
 
-#define ENABLE_DEBUGGING    (1)
+#define ENABLE_DEBUGGING    (0)
 #define RX_BUFFER_SIZE      (40000)
 #define RX_BLOCK_SIZE       (128)
 
@@ -70,31 +70,30 @@ bulbId[12] = 13;
 //  Configure your system here                     END
 // ***************************************************
 
-// Returns 0 if single bulb, 1 if group
 int IsGroup(int type)
 {
-    int boolIsGroup = 0;
+    int isGroup = 0;
     switch(type)
     {
         case TYPE_SINGLE_RGB:
         case TYPE_SINGLE_TUNABLE:
         case TYPE_SINGLE_DIM:
         case TYPE_SINGLE_ONOFF:
-            boolIsGroup = 0;
+            isGroup = 0;
             break;
 
         case TYPE_GROUP_RGB:
         case TYPE_GROUP_TUNABLE:
         case TYPE_GROUP_DIM:
         case TYPE_GROUP_ONOFF:
-            boolIsGroup = 1;
+            isGroup = 1;
             break;
     }
-    return boolIsGroup;
+    return isGroup;
 }
 
 
-void SendCommand(int type, int id, char *command)
+void SendCommand(int isGroup, int id, char *command)
 {
     char streamname[100];
     char selector[30];
@@ -117,7 +116,7 @@ void SendCommand(int type, int id, char *command)
         return;
     }
 
-    if (0 == type)
+    if (0 == isGroup)
     {
         sprintf(selector, "lights/%d/state", id);
     }
@@ -161,7 +160,7 @@ void SendCommand(int type, int id, char *command)
 }
 
 
-void SetOnOff(int id, int state, int type)
+void SetOnOff(int id, int state, int isGroup)
 {
     char command[50];
 
@@ -173,41 +172,35 @@ void SetOnOff(int id, int state, int type)
     {
         sprintf(command, "{\"on\": true, \"transitiontime\": 10}");
     }
-    SendCommand(type, id, command);
+    SendCommand(isGroup, id, command);
 }
 
 
-void SetDim(int id, int brightness, int type)
+void SetDim(int id, int brightness, int isGroup)
 {
     char command[60];
 
     // Check if brightness is set to 0 and leave early
     if (0 == brightness)
     {
-        SetOnOff(id, 0, type);
-        return;
-    } 
+        SetOnOff(id, 0, isGroup);
+    }
+    else
+    {
+        // Change range of brightness 1-100 -> 1-255
+        brightness = (brightness * 255) / 100;
 
-    // Change range of brightness 1-100 -> 1-255
-    brightness = (brightness * 255) / 100;
-
-    sprintf(command, "{\"on\": true, \"bri\": %d, \"transitiontime\": 10}", brightness);
-    SendCommand(type, id, command);
+        sprintf(command, "{\"on\": true, \"bri\": %d, \"transitiontime\": 10}", brightness);
+        SendCommand(isGroup, id, command);
+    }
 }
 
 
-void SetTunable(int id, int value, int type)
+void SetTunable(int id, int value, int isGroup)
 {
     char command[100];
     int brightness;
     int temperature;
-
-    // Check if brightness is set to 0 and leave early
-    if (0 == brightness)
-    {
-        SetOnOff(id, 0, type);
-        return;
-    }
 
     brightness  = (value - 200000000) / 10000;                  // 0-100
     temperature = (value - 200000000) - (brightness * 10000);   // Kelvin 2700 - 6500
@@ -215,12 +208,20 @@ void SetTunable(int id, int value, int type)
     brightness  = (brightness * 255) / 100;                     // 0-255
     temperature = 1000000 / temperature;                        // 154 - 370
 
-    sprintf(command, "{\"on\": true, \"bri\": %d, \"ct\": %d, \"transitiontime\": 10}", brightness, temperature);
-    SendCommand(type, id, command);
+    // Check if input value was set to 0 or brightness is set to 0
+    if ((0 == value)||(0 == brightness))
+    {
+        SetOnOff(id, 0, isGroup);
+    }
+    else
+    {
+        sprintf(command, "{\"on\": true, \"bri\": %d, \"ct\": %d, \"transitiontime\": 10}", brightness, temperature);
+        SendCommand(isGroup, id, command);
+    }
 }
 
 
-void SetColorXYB(int id, float red, float green, float blue, int type)
+void SetColorXYB(int id, float red, float green, float blue, int isGroup)
 {
     float cx, cy, bri;
     float X, Y, Z;
@@ -286,12 +287,11 @@ void SetColorXYB(int id, float red, float green, float blue, int type)
 
     sprintf(command, "{\"xy\": [%f,%f],\"bri\": %d,\"on\":true, \"transitiontime\": 10}", cx, cy, bri);
 
-    SendCommand(type, id, command);
+    SendCommand(isGroup, id, command);
 }
 
 
-// Living Colors Gen2 does not work with xy
-void SetColorHSB(int id, float red, float green, float blue, int type)
+void SetColorHSB(int id, float red, float green, float blue, int isGroup)
 {
     float hue, sat, bri;
     char command[100];
@@ -354,11 +354,11 @@ void SetColorHSB(int id, float red, float green, float blue, int type)
 
     sprintf(command, "{\"bri\": %d, \"hue\": %d, \"sat\": %d, \"on\": true, \"transitiontime\": 10}", (int)bri, (int)hue, (int)sat);
 
-    SendCommand(type, id, command);
+    SendCommand(isGroup, id, command);
 }
 
 
-void SetRGB(int id, int value, int type)
+void SetRGB(int id, int value, int isGroup)
 {
     int red;
     int green;
@@ -367,7 +367,7 @@ void SetRGB(int id, int value, int type)
     // Check if brightness is set to 0 and leave early
     if (0 == value)
     {
-        SetOnOff(id, 0, type);
+        SetOnOff(id, 0, isGroup);
         return;
     }
 
@@ -376,8 +376,8 @@ void SetRGB(int id, int value, int type)
     red   = value - (blue * 1000000) - (green * 1000);
 
     // Use ether HSB or XYB to set RGB colors (Choose whatever works best for you!)
-    SetColorXYB(id, (float)red, (float)green, (float)blue, type);
-    //SetColorHSB(id, (float)red, (float)green, (float)blue, type);
+    SetColorXYB(id, (float)red, (float)green, (float)blue, isGroup);
+    //SetColorHSB(id, (float)red, (float)green, (float)blue, isGroup);
 }
 
 
@@ -419,30 +419,48 @@ void UpdateLamp(int i, int value)
 }
 
 
-int main(void)
+// Main application
+int inputsThatChanged;
+int i;
+int refreshCounter = 0;
+
+while (1)
 {
-    int inputsThatChanged;
-    int i;
+    // Get a bitmask of the changed inputs (bit 0 = first input of object, starts with text inputs followed by analog inputs).
+    inputsThatChanged = getinputevent();
 
-    while (1)
+    // First fast round to update all lights that changed as quickly as possible
+    for (i = 0; i < 13; i++)
     {
-        // Get a bitmask of the changed inputs (bit 0 = first input of object, starts with text inputs followed by analog inputs).
-        inputsThatChanged = getinputevent();
+        // Check if input has changed
+        if (inputsThatChanged & 0x8 << i)
+        {
+            UpdateLamp(i, (int)getinput(i));
+        }
+    }
 
-        // Loop from AI1 to AI13 and update lamp if the corresponding input changed
+    // Second slower round (with sleep) to update all lights that changed did not get updated in the first round (e.g. due to network congestion)
+    for (i = 0; i < 13; i++)
+    {
+        // Check if input has changed
+        if (inputsThatChanged & 0x8 << i)
+        {
+            UpdateLamp(i, (int)getinput(i));
+            sleep(10);
+        }
+    }
+
+    refreshCounter = refreshCounter + 1;
+
+    // Refresh all lights approximately every 60s (to keep hue lights in sync with Loxone Miniserver, if they are changed via the Hue app)
+    if (600 < refreshCounter)
+    {
+        refreshCounter = 0;
         for (i = 0; i < 13; i++)
         {
-            if (inputsThatChanged & (0x8 << i))
-            {
-                UpdateLamp(i, (int)getinput(i));
-                sleep(100);
-            }
+            UpdateLamp(i, (int)getinput(i));
+            sleep(10);
         }
-
-        sleep(100);
     }
-    return 0;
+    sleep(100);
 }
-
-
-main();
