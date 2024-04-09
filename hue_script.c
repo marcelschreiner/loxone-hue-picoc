@@ -146,10 +146,7 @@ void SendCommand(int isGroup, int id, char *command)
             }
             else if (nCnt > 0)
             {
-                if (ENABLE_DEBUGGING)
-                {
-                    strncpy((char *)rxBuffer + nBytesReceived, szTmpBuffer, nCnt);
-                }
+                strncpy((char *)rxBuffer + nBytesReceived, szTmpBuffer, nCnt);
                 nBytesReceived += nCnt;
             }
         } while (nCnt > 0);
@@ -223,8 +220,12 @@ void SetTunable(int id, int value, int isGroup)
 
 void SetColorXYB(int id, float red, float green, float blue, int isGroup)
 {
-    float cx, cy, bri;
-    float X, Y, Z;
+    float cx;
+    float cy;
+    float bri;
+    float X;
+    float Y;
+    float Z;
     char command[100];
 
     bri = blue;
@@ -293,7 +294,9 @@ void SetColorXYB(int id, float red, float green, float blue, int isGroup)
 
 void SetColorHSB(int id, float red, float green, float blue, int isGroup)
 {
-    float hue, sat, bri;
+    float hue;
+    float sat;
+    float bri;
     char command[100];
 
     hue = 0;
