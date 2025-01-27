@@ -12,6 +12,9 @@
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=marcelschreiner_loxone-hue-picoc&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=marcelschreiner_loxone-hue-picoc)
 [![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=marcelschreiner_loxone-hue-picoc&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=marcelschreiner_loxone-hue-picoc)
 
+
+[![BuyMeACoffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/marcelschreiner)
+
 # loxone-hue-picoc
 A PicoC script to control Philips Hue lights from a Loxone Miniserver. Using this solution it is not necessary to rely on a thirdparty bridge to translate between the Miniserver and the Hue Bridge.
 
